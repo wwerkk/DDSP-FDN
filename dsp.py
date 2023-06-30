@@ -78,7 +78,10 @@ def freeverb(input_signal: np.ndarray, c_delays: Optional[List[int]] = None, c_g
     output_signal = np.zeros_like(input_signal)
     for delay, gain in zip(c_delays, c_gains):
         output_signal += comb(input_signal, delay, gain)
-
+    # Normalize output
+    max_abs_value = np.max(np.abs(output_signal))
+    epsilon = 1e-12
+    output_signal = output_signal / (max_abs_value + epsilon)
     return output_signal
 
 
