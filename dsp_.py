@@ -35,14 +35,17 @@ def freeverb(input_signal: np.ndarray, c_delays: Optional[np.ndarray] = None, c_
     if a_gains is None:
         a_gains = np.array([0.5, 0.5, 0.5, 0.5])
 
-    # Apply allpass filters
-    for delay, gain in zip(a_delays, a_gains):
-        input_signal = allpass(input_signal, delay, gain)
+    input_signal *= 0.015 # scale input
 
     # Apply comb filters
     output_signal = np.zeros_like(input_signal)
     for delay, gain in zip(c_delays, c_gains):
         output_signal += comb(input_signal, delay, gain)
+        
+    # Apply allpass filters
+    for delay, gain in zip(a_delays, a_gains):
+        input_signal = allpass(input_signal, delay, gain)
+
     # Normalize output
     max_abs_value = np.max(np.abs(output_signal))
     epsilon = 1e-12
