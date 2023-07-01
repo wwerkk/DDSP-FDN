@@ -1,6 +1,8 @@
 import numpy as np
 import soundfile as sf
 
+# TODO: Something's still off with the feedback!
+
 def comb(x, b=1.0, M=2000, a=0.9):
     y = np.zeros(x.shape[-1] + M)
     feedback = 0

@@ -7,7 +7,7 @@ import numba
 @numba.jit(nopython=True)
 def allpass(x, M=2000, a=0.5):
     feedback = 0
-    y = np.zeros(x.shape[-1] + M)
+    y = np.zeros(x.shape[-1] + M * 4)
     feedback = 0
     for i in np.arange(0, len(y)):
         if i < (x.shape[-1]):
@@ -21,7 +21,7 @@ def allpass(x, M=2000, a=0.5):
 
 @numba.jit(nopython=True)
 def comb(x, b=1, M=11050, a=0.5):
-    y = np.zeros(x.shape[-1] + M)
+    y = np.zeros(x.shape[-1] + M * 4)
     feedback = 0
     for i in np.arange(0, len(y)):
         if i < (x.shape[-1]):
@@ -36,7 +36,7 @@ def comb(x, b=1, M=11050, a=0.5):
 # https://ccrma.stanford.edu/~jos/pasp/Lowpass_Feedback_Comb_Filter.html
 @numba.jit(nopython=True)
 def lbcf(x, b=1, M=11050, a=0.5, d=0.5):
-    y = np.zeros(x.shape[-1] + M)
+    y = np.zeros(x.shape[-1] + M * 4)
     feedback = 0
     for i in np.arange(0, len(y)):
         if i < (x.shape[-1]):

@@ -39,21 +39,21 @@ waveform, sample_rate = read(file_path)
 # waveform = waveform.to(float32)  # Convert to float32 if necessary
 
 
-# c_delays = np.array([1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116])
-# c_gains = np.array([0.84 for i in range(8)])
-# c_damps = np.array([0.2 for i in range(8)])
-# a_delays = np.array([225, 556, 441, 341])
-# a_gains = np.array([0.5 for i in range(4)])
+c_delays = np.array([1116, 1617, 1491, 1422, 1277, 1356, 1188, 1116])
+c_gains = np.array([0.84 for i in range(8)])
+c_damps = np.array([0.2 for i in range(8)])
+a_delays = np.array([556, 441, 341, 225])
+a_gains = np.array([0.5 for i in range(4)])
 
 # Normalize the waveform to the range [-1, 1]
 waveform /= max(abs(waveform))
 for i in range(n_samples):
     # Apply the Freeverb effect with randomized parameters
-    c_delays = np.random.randint(int(c[0][0]), int(c[0][1]), size=n_c)
-    c_gains = np.random.uniform(c[1][0], c[1][1], n_c)
-    c_damps = np.random.uniform(c[2][0], c[2][1], n_c)
-    a_delays = np.random.randint(int(a[0][0]), int(a[0][1]), size=n_a)
-    a_gains = np.random.uniform(a[1][0], a[1][1], n_a)
+    # c_delays = np.random.randint(int(c[0][0]), int(c[0][1]), size=n_c)
+    # c_gains = np.random.uniform(c[1][0], c[1][1], n_c)
+    # c_damps = np.random.uniform(c[2][0], c[2][1], n_c)
+    # a_delays = np.random.randint(int(a[0][0]), int(a[0][1]), size=n_a)
+    # a_gains = np.random.uniform(a[1][0], a[1][1], n_a)
 
     # Process the audio file with the Freeverb effect
     processed_waveform = freeverb(
