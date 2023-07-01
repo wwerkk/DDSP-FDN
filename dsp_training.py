@@ -35,8 +35,6 @@ class AudioDataset(Dataset):
         self.param_extension = param_extension
         self.file_names = [f.replace(self.audio_extension, '') for f in os.listdir(wet_audio_dir) if f.endswith(self.audio_extension)]
         print(f"Loaded files: {len(self.file_names)}")
-        self.min_vals = None
-        self.max_vals = None
 
     def __len__(self):
         return len(self.file_names)
@@ -61,7 +59,7 @@ class AudioDataset(Dataset):
 
         # Normalize the parameters
         params[:8] = self.normalize_freq(params[:8])
-        params[16:20] = self.normalize_freq(params[16:20])
+        params[16:20] = self.normalize_freq(params[24:28])
 
         return mfccs, params
 
@@ -127,7 +125,7 @@ impulse, sr = torchaudio.load(impulse_file)
 # sr = 16000
 
 # Define the model
-model = AudioModel(1079, 64, 24)  # Assuming audio files are 1 second at 44100Hz and parameters are 24-dimensional
+model = AudioModel(1079, 64, 28)  # Assuming audio files are 1 second at 44100Hz and parameters are 24-dimensional
 optimizer = Adam(model.parameters(), lr=0.0001)
 criterion = torch.nn.MSELoss()
 
