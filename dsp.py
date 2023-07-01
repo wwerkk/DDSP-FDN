@@ -49,7 +49,6 @@ def lbcf(x: np.ndarray[float], b: float = 1.0, M: int = 2000, a: float = 0.9, d:
         if i >= M:
             y[i] += feedback
             feedback += (1 - d) * ((a * y[i - M]) - feedback)
-        # if abs(y[i]) > 0:
     return y
 
 @numba.jit(nopython=True)
