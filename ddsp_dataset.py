@@ -1,66 +1,93 @@
 import os
-import random
+import torch
+import torchaudio
 import numpy as np
-from torchaudio import load, save
-from iir import freeverb
-from torch import float32, abs, max
+from ddsp import freeverb
+import time
+
+start_time = time.time()
+
+if torch.cuda.is_available():
+    device = torch.device("cuda:0")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 # Set the paths
-dry_dir = "data/freeverb_dataset/dry"
-param_dir = "data/freeverb_dataset/params"
-wet_dir = "data/freeverb_dataset/wet"
+x_file = "balloon_burst.wav"
+x_dir = "data/freeverb_dataset/x"
+p_dir = "data/freeverb_dataset/p"
+y_dir = "data/freeverb_dataset/y"
+
+n_samples = 1
 
 # Create the output directory if it doesn't exist
-os.makedirs(param_dir, exist_ok=True)
-os.makedirs(wet_dir, exist_ok=True)
+os.makedirs(p_dir, exist_ok=True)
+os.makedirs(y_dir, exist_ok=True)
 
-# Define the Freeverb parameters range in format (mean, deviaiton)
-# Adjust the mean an deviation according to your desired parameter space
-n_combs = 8
-comb_delays_d = (1500, 500)
-comb_gains_d = (0.5, 0.3)
-n_allpasses = 8
-allpass_delays_d = (250, 200)
-allpass_gains_d = (0.5, 0.2)
+# Define the Freeverb parameter space
+n_c = 8
+c = (
+    (1000, 500),  # delay mean, stdev
+    (0.75, 0.1),  # feedback gain mean, stdev
+    (0.2, 0.05)  # damping mean, stdev
+)
+
+n_a = 4
+a = (
+    (500, 200),  # delay mean, stdev
+    (0.5, 0.2)  # feedback gain mean, stdev
+)
 
 # Set the random seed for reproducibility
-random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
 
-# Iterate over the audio files in the input directory
-for i, filename in enumerate(os.listdir(dry_dir)):
-    if filename.endswith(".wav"):
-        # Load the audio file
-        file_path = os.path.join(dry_dir, filename)
-        waveform, sample_rate = load(file_path)
+# Load the audio file
+file_path = os.path.join(x_dir, x_file)
+x, sr = torchaudio.load(file_path)
+# Normalize the x to the range [-1, 1]
+x /= torch.max(torch.abs(x))
 
-        # Convert the waveform to a PyTorch tensor
-        waveform = waveform.squeeze(0)  # Remove the channel dimension if present
-        # waveform = waveform.to(float32)  # Convert to float32 if necessary
-
-        # Normalize the waveform to the range [-1, 1]
-        waveform /= max(abs(waveform))
-
-        # Apply the Freeverb effect with randomized parameters
-        comb_delays = [int(random.normalvariate(comb_delays_d[0], comb_delays_d[1])) for j in range(n_combs)]
-        comb_gains = [random.normalvariate(comb_gains_d[0], comb_gains_d[1]) for i in range(n_combs)]
-        allpass_delays = [int(random.normalvariate(allpass_delays_d[0], allpass_delays_d[1])) for j in range(n_allpasses)]
-        allpass_gains = [random.normalvariate(allpass_gains_d[0], allpass_gains_d[1]) for j in range(n_allpasses)]
-
-        # Process the audio file with the Freeverb effect
-        processed_waveform = freeverb(waveform, comb_delays, comb_gains, allpass_delays, allpass_gains)
-        # processed_waveform = freeverb(waveform)
-        
-        # Store the parameters in a .txt file
-        param_filename = os.path.splitext(filename)[0] + f".txt"
-        param_path = os.path.join(param_dir, param_filename)
-        parameters = np.array([comb_delays, comb_gains, allpass_delays, allpass_gains])
-        print(parameters)
-        np.savetxt(param_path, parameters)
+for i in range(n_samples):
+    # Apply the Freeverb effect with randomized parameters
+    cM = torch.round(torch.normal(c[0][0], c[0][1], size=(n_c,))).to(torch.int32)
+    ca = torch.normal(c[1][0], c[1][1], size=(n_c,), dtype=torch.float32)
+    cd = torch.normal(c[2][0], c[2][1], size=(n_c,), dtype=torch.float32)
+    aM = torch.round(torch.normal(a[0][0], a[0][1], size=(n_a,))).to(torch.int32)
+    aa = torch.normal(a[1][0], a[1][1], size=(n_a,), dtype=torch.float32)
 
 
-        # Save the processed waveform to a new audio file
-        wet_path = os.path.join(wet_dir, filename)
-        # Reshape the processed waveform to have two dimensions
-        processed_waveform = processed_waveform.unsqueeze(0)  # Add the channel dimension back
-        processed_waveform = processed_waveform.cpu()
-        save(wet_path, processed_waveform, sample_rate)
+    # Clip gain parameters to prevent exploding feedback
+    ca = torch.clamp(ca, 0, 1)
+    cd = torch.clamp(cd, 0, 1)
+    aa = torch.clamp(aa, 0, 1)
+
+    # Process the audio file with the Freeverb effect
+    y = freeverb(
+        x=x,
+        cM=cM,
+        ca=ca,
+        cd=cd,
+        aM=aM,
+        aa=aa
+    )
+
+    # Store the parameters in a .txt file
+    p_filename = os.path.splitext(x_file)[0] + f"_{i}.txt"
+    p_path = os.path.join(p_dir, p_filename)
+    p = torch.cat([cM, ca, cd, aM, aa])
+    np.savetxt(p_path, p.numpy(), fmt='%.10f')
+
+    # Save the processed x to a new audio file
+    y = y.unsqueeze(1).cpu()
+    y_filename = os.path.splitext(x_file)[0] + f"_{i}.wav"
+    y_path = os.path.join(y_dir, y_filename)
+    torchaudio.save(y_path, y, sr)
+    print(f"Generated: {i + 1}/{n_samples}")
+
+print(f"{n_samples} samples generated.")
+end_time = time.time()
+runtime = end_time - start_time
+print(f"Runtime: {runtime} seconds")
