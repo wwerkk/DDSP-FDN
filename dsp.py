@@ -1,139 +1,89 @@
 import numpy as np
-from typing import List, Optional
+from typing import Optional
+import numba
+# Process audio using numba (a bit faster)
 
-def allpass(input_signal, delay, gain):
-    """
-    Apply an allpass filter to the input signal.
+@numba.jit(nopython=True)
+def comb(x, b=1.0, M=2000, a=0.9):
+    y = np.zeros(x.shape[-1] + M)
+    feedback = 0
+    for i in range(len(y)):
+        if i < (x.shape[-1]):
+            y[i] += b * x[i]
+        if i >= M:
+            y[i] += feedback
+            feedback = -a * y[i - M]
+    return y
 
-    Parameters:
-        input_signal (array_like): Input signal to be filtered.
-        delay (int): Delay length in samples.
-        gain (float): Gain coefficient for the allpass filter.
+# Schroeder's Lowpass-Feedback Comb Filter
+# https://ccrma.stanford.edu/~jos/pasp/Lowpass_Feedback_Comb_Filter.html
+@numba.jit(nopython=True)
+def lbcf(x, b=1.0, M=2000, a=0.9, d=0.5):
+    y = np.zeros(x.shape[-1] + M)
+    feedback = 0
+    for i in np.arange(0, len(y)):
+        if i < (x.shape[-1]):
+            y[i] += b * x[i]
+        if i >= M:
+            y[i] += feedback
+            feedback += (1 - d) * ((a * y[i - M]) - feedback)
+    return y
 
-    Returns:
-        ndarray: Filtered output signal.
-    """
-    delay = np.clip(delay, 20, 20000)
-    gain = np.clip(gain, 0.0, 0.99)
-    delay_line = np.zeros(delay)
-    output_signal = np.zeros_like(input_signal)
-    for i, x in enumerate(input_signal):
-        output_signal[i] = -gain * x + delay_line[-1] + gain * delay_line[0]
-        delay_line = np.roll(delay_line, -1)
-        delay_line[-1] = x
-    return output_signal
+@numba.jit(nopython=True)
+def allpass(x, M=2000, a=0.5):
+    feedback = 0
+    y = np.zeros(x.shape[-1] + M)
+    feedback = 0
+    for i in np.arange(0, len(y)):
+        if i < (x.shape[-1]):
+            y[i] = x[i] - feedback
+            feedback *= a
+            if i >= M:
+                feedback += x[i]
+        else:
+            y[i] -= feedback
+            feedback *= a
+    return y
 
+def freeverb(
+        x,
+        cb=[1.0 for i in range(8)],
+        cM=[1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116],
+        ca=[0.84 for i in range(8)],
+        cd=[0.2 for i in range(8)],
+        aM=[225, 556, 441, 341],
+        aa=[0.5 for i in range(4)]
+        ):
+    # Apply parallel lowpass feedback comb filters
+    y = np.zeros_like(x)
+    for b, M, a, d in zip(cb, cM, ca, cd):
+        y_ = lbcf(
+            x=x,
+            b=b,
+            M=M,
+            a=a,
+            d=d
+            )
+        shape = y.shape[-1]
+        shape_ = y_.shape[-1]
+        if shape < shape_:
+            # print(shape, shape_, shape_-shape)
+            y = np.pad(
+                y,
+                (0, shape_-shape), 'constant', constant_values=(0))
+        elif shape > shape_:
+            # print(shape, shape_, shape-shape_)
+            y_ = np.pad(
+                y_,
+                (0, shape-shape_), 'constant', constant_values=(0))
+        y += y_
+        
+    # Apply cascading allpass filters
+    for M, a in zip(aM, aa):
+        y = allpass(y, M, a)
 
-def comb(input_signal, delay, gain):
-    """
-    Apply a comb filter to the input signal.
-
-    Parameters:
-        input_signal (array_like): Input signal to be filtered.
-        delay (int): Delay length in samples.
-        gain (float): Gain coefficient for the comb filter.
-
-    Returns:
-        ndarray: Filtered output signal.
-    """
-    delay = np.clip(delay, 20, 20000)
-    gain = np.clip(gain, 0.0, 0.99)
-    delay_line = np.zeros(delay)
-    output_signal = np.zeros_like(input_signal)
-    for i, x in enumerate(input_signal):
-        output_signal[i] = x + gain * delay_line[-1]
-        delay_line = np.roll(delay_line, -1)
-        delay_line[-1] = output_signal[i]
-    return output_signal
-
-
-def freeverb(input_signal: np.ndarray, c_delays: Optional[List[int]] = None, c_gains: Optional[List[float]] = None, a_delays: Optional[List[int]] = None, a_gains: Optional[List[float]] = None) -> np.ndarray:
-    """
-    Apply the Freeverb (aka Schroeder Reverb) algorithm to the input signal.
-
-    Parameters:
-        input_signal (array_like): Input signal to be processed.
-        fs (int): Sample rate of the input signal.
-        rt60 (float): Reverberation time in seconds for a decay of 60dB.
-
-    Returns:
-        ndarray: Processed output signal.
-    """
-
-    # Set default values for the parameters if they are not provided
-    if c_delays is None:
-        c_delays = [1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116]
-    if c_gains is None:
-        c_gains = [.84, .84, .84, .84, .84, .84, .84, .84]
-    if a_delays is None:
-        a_delays = [225, 556, 441, 341]
-    if a_gains is None:
-        a_gains = [0.5, 0.5, 0.5, 0.5]
-
-    # Apply allpass filters
-    for delay, gain in zip(a_delays, a_gains):
-        input_signal = allpass(input_signal, delay, gain)
-
-    # Apply comb filters
-    output_signal = np.zeros_like(input_signal)
-    for delay, gain in zip(c_delays, c_gains):
-        output_signal += comb(input_signal, delay, gain)
     # Normalize output
-    max_abs_value = np.max(np.abs(output_signal))
+    max_abs_value = np.max(np.abs(y))
     epsilon = 1e-12
-    output_signal = output_signal / (max_abs_value + epsilon)
-    return output_signal
-
-
-def ssr_iir(input_signal, A, B, C, D):
-    """
-    Apply an Infinite Impulse Response (IIR) filter using state space realization.
-
-    Parameters:
-        input_signal (array_like): Input signal to be filtered.
-        A (ndarray): State transition matrix of shape (num_states, num_states).
-        B (ndarray): Input matrix of shape (num_states, 1).
-        C (ndarray): Output matrix of shape (1, num_states).
-        D (ndarray): Feedforward matrix of shape (1, 1).
-
-    Returns:
-        ndarray: Filtered output signal.
-
-    Example:
-        import numpy as np
-        from scipy.io import wavfile
-
-        # Load the input audio signal
-        sample_rate, audio_data = wavfile.read('input_audio.wav')
-
-        # Normalize the audio signal to the range [-1, 1]
-        audio_data = audio_data.astype(np.float32) / np.iinfo(audio_data.dtype).max
-
-        # Define the filter coefficients
-         >>> A = np.array([[1.0, -0.8, 0.2],
-                      [0.0, 0.5, -0.5],
-                      [0.0, 0.2, 0.9]])
-        >>> B = np.array([[1.0],
-                      [0.0],
-                      [0.0]])
-        >>> C = np.array([[0.5, 0.3, 0.1]])
-        >>> D = np.array([[0.2]])
-
-        # Apply the IIR filter to the audio signal
-        >>> filtered_audio = iir(audio_data, A, B, C, D)
-
-        # Save the filtered audio to a file
-        >>> filtered_audio = (filtered_audio * np.iinfo(audio_data.dtype).max).astype(audio_data.dtype)
-        >>> wavfile.write('output_audio.wav', sample_rate, filtered_audio)
-    """
-    # Initialize the output signal and state vector
-    num_samples = len(input_signal)
-    num_states = A.shape[0]
-    output_signal = np.zeros(num_samples)
-    x = np.zeros(num_states)
-    # Apply the state space equations to each input sample
-    for i in range(num_samples):
-        x = np.dot(A, x) + np.dot(B, input_signal[i])
-        # Take mean of outputs for single channel out
-        output_signal[i] = np.mean(np.dot(C, x)) + np.mean(np.dot(D, input_signal[i]))
-    return output_signal
+    y = y / (max_abs_value + epsilon)
+    return y

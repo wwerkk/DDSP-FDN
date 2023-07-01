@@ -2,7 +2,7 @@ import os
 import random
 import numpy as np
 from torchaudio import load, save
-from dsp import freeverb
+from iir import freeverb
 from torch import float32, abs, max
 
 # Set the paths

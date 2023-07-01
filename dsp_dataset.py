@@ -2,7 +2,7 @@ import os
 import random
 import numpy as np
 from soundfile import read, write
-from dsp_ import freeverb
+from dsp import freeverb
 
 # Set the paths
 dry_dir = "data/freeverb_dataset/dry"

@@ -1,4 +1,4 @@
-from dsp import iir
+from iir import iir
 
 import numpy as np
 import soundfile as sf
