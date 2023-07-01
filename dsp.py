@@ -3,7 +3,7 @@ import numba
 import numpy as np
 
 @numba.jit(nopython=True)
-def comb(x: np.ndarray[float], b: float = 1.0, M: int = 2000, a: float = 0.9) -> np.ndarray:
+def comb(x: np.ndarray[float], b: float = 1.0, M: int = 2000, a: float = 0.9) -> np.ndarray[float]:
     """
     Implements a feedback comb filter.
 
@@ -18,7 +18,7 @@ def comb(x: np.ndarray[float], b: float = 1.0, M: int = 2000, a: float = 0.9) ->
     """
     y = np.zeros(x.shape[-1] + M)
     feedback = 0
-    for i in range(len(y)):
+    for i in range(y.shape[-1]):
         if i < x.shape[-1]:
             y[i] += b * x[i]
         if i >= M:
@@ -27,7 +27,7 @@ def comb(x: np.ndarray[float], b: float = 1.0, M: int = 2000, a: float = 0.9) ->
     return y
 
 @numba.jit(nopython=True)
-def lbcf(x: np.ndarray[float], b: float = 1.0, M: int = 2000, a: float = 0.9, d: float = 0.5) -> np.ndarray:
+def lbcf(x: np.ndarray[float], b: float = 1.0, M: int = 2000, a: float = 0.9, d: float = 0.5) -> np.ndarray[float]:
     """
     Implements Schroeder's Lowpass-Feedback Comb Filter.
 
@@ -43,12 +43,13 @@ def lbcf(x: np.ndarray[float], b: float = 1.0, M: int = 2000, a: float = 0.9, d:
     """
     y = np.zeros(x.shape[-1] + M)
     feedback = 0
-    for i in range(len(y)):
+    for i in range(y.shape[-1]):
         if i < x.shape[-1]:
             y[i] += b * x[i]
         if i >= M:
             y[i] += feedback
             feedback += (1 - d) * ((a * y[i - M]) - feedback)
+        # if abs(y[i]) > 0:
     return y
 
 @numba.jit(nopython=True)
@@ -67,7 +68,7 @@ def allpass(x: np.ndarray[float], M: int = 2000, a: float = 0.5) -> np.ndarray[f
     feedback = 0
     y = np.zeros(x.shape[-1] + M)
     feedback = 0
-    for i in range(len(y)):
+    for i in range(y.shape[-1]):
         if i < x.shape[-1]:
             y[i] = x[i] - feedback
             feedback *= a
