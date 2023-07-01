@@ -5,78 +5,73 @@ from soundfile import read, write
 from dsp import freeverb
 
 # Set the paths
-dry_dir = "data/freeverb_dataset/dry"
-param_dir = "data/freeverb_dataset/params"
-wet_dir = "data/freeverb_dataset/wet"
-filename = "balloon_burst.wav"
+x_file = "balloon_burst.wav"
+x_dir = "data/freeverb_dataset/x"
+p_dir = "data/freeverb_dataset/p"
+y_dir = "data/freeverb_dataset/y"
 
 n_samples = 10
 
 # Create the output directory if it doesn't exist
-os.makedirs(param_dir, exist_ok=True)
-os.makedirs(wet_dir, exist_ok=True)
+os.makedirs(p_dir, exist_ok=True)
+os.makedirs(y_dir, exist_ok=True)
 
-# Define the Freeverb parameters range
+# Define the Freeverb peters range
 n_c = 8
 c = (
-    (100., 6000.), # delay time range
-    (0.1, 0.9), # feedback gain gain
-    (0.1, 0.9) # damping range
+    (1250, 500), # delay mean, stdev
+    (0.8, 0.15), # feedback gain mean, stdev
+    (0.2, 0.05) # damping mean, stdev
 )
 
 n_a = 4
 a = (
-    (100, 6000),
-    (0.1, 0.9)
+    (400, 200), # delay mean, stdev
+    (0.5, 0.1) # feedback gain mean, stdev
 )
 
 # Set the random seed for reproducibility
 random.seed(42)
 
 # Load the audio file
-file_path = os.path.join(dry_dir, filename)
-waveform, sample_rate = read(file_path)
-# waveform = waveform.to(float32)  # Convert to float32 if necessary
-
-
-c_delays = np.array([1116, 1617, 1491, 1422, 1277, 1356, 1188, 1116])
-c_gains = np.array([0.84 for i in range(8)])
-c_damps = np.array([0.2 for i in range(8)])
-a_delays = np.array([556, 441, 341, 225])
-a_gains = np.array([0.5 for i in range(4)])
-
-# Normalize the waveform to the range [-1, 1]
-waveform /= max(abs(waveform))
+file_path = os.path.join(x_dir, x_file)
+x, sr = read(file_path)
+# Normalize the x to the range [-1, 1]
+x /= max(abs(x))
 for i in range(n_samples):
-    # Apply the Freeverb effect with randomized parameters
-    # c_delays = np.random.randint(int(c[0][0]), int(c[0][1]), size=n_c)
-    # c_gains = np.random.uniform(c[1][0], c[1][1], n_c)
-    # c_damps = np.random.uniform(c[2][0], c[2][1], n_c)
-    # a_delays = np.random.randint(int(a[0][0]), int(a[0][1]), size=n_a)
-    # a_gains = np.random.uniform(a[1][0], a[1][1], n_a)
+    # Apply the Freeverb effect with randomized peters
+    cM = np.random.normal(c[0][0], c[0][1], n_c).astype(int)
+    ca = np.random.normal(c[1][0], c[1][1], n_c)
+    cd = np.random.normal(c[2][0], c[2][1], n_c)
+    aM = np.random.normal(a[0][0], a[0][1], n_a).astype(int)
+    aa = np.random.normal(a[1][0], a[1][1], n_a)
+
+    # Clip gain params to prevent exploding feedback
+    ca = np.clip(ca, 0, 1)
+    cd = np.clip(cd, 0, 1)
+    aa = np.clip(aa, 0, 1)
 
     # Process the audio file with the Freeverb effect
-    processed_waveform = freeverb(
-        input_signal=waveform,
-        c_delays=c_delays,
-        c_gains=c_gains,
-        c_damps=c_damps,
-        a_delays=a_delays,
-        a_gains=a_gains
+    y = freeverb(
+        x=x,
+        cM=cM,
+        ca=ca,
+        cd=cd,
+        aM=aM,
+        aa=aa
     )
-    # processed_waveform = freeverb(waveform)
     
-    # Store the parameters in a .txt file
-    param_filename = os.path.splitext(filename)[0] + f"_{i}.txt"
-    param_path = os.path.join(param_dir, param_filename)
-    parameters = np.concatenate([c_delays, c_gains, c_damps, a_delays, a_gains], dtype=object)
-    # print(parameters)
-    np.savetxt(param_path, parameters, fmt='%.5f')
-    # Save the processedt56 waveform to a new audio file
-    wet_filename = os.path.splitext(filename)[0] + f"_{i}.wav"
-    wet_path = os.path.join(wet_dir, wet_filename)
-    # Reshape the processed waveform to have two dimensions
-    # processed_waveform = processed_waveform[:, np.newaxis]  # Add the channel dimension back
-    write(wet_path, processed_waveform, sample_rate)
+    # Store the peters in a .txt file
+    p_filename = os.path.splitext(x_file)[0] + f"_{i}.txt"
+    p_path = os.path.join(p_dir, p_filename)
+    p = np.concatenate([cM, ca, cd, aM, aa], dtype=object)
+    # print(peters)
+    np.savetxt(p_path, p, fmt='%.10f')
+    # Save the processed x to a new audio file
+    y_filename = os.path.splitext(x_file)[0] + f"_{i}.wav"
+    y_path = os.path.join(y_dir, y_filename)
+    # Reshape the processed x to have two dimensions
+    # y = y[:, np.newaxis]  # Add the channel dimension back
+    write(y_path, y, sr)
     print(f"Generated: {i+1}/{n_samples}")
 print(f"{n_samples} samples generated.")
