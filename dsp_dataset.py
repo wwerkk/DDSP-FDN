@@ -1,5 +1,4 @@
 import os
-import random
 import numpy as np
 from soundfile import read, write
 from dsp import freeverb
@@ -16,7 +15,7 @@ n_samples = 10
 os.makedirs(p_dir, exist_ok=True)
 os.makedirs(y_dir, exist_ok=True)
 
-# Define the Freeverb peters range
+# Define the Freeverb parameter space
 n_c = 8
 c = (
     (1000, 500), # delay mean, stdev
@@ -31,7 +30,7 @@ a = (
 )
 
 # Set the random seed for reproducibility
-random.seed(42)
+np.random.seed(42)
 
 # Load the audio file
 file_path = os.path.join(x_dir, x_file)

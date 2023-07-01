@@ -1,10 +1,10 @@
-from typing import List
 import numpy as np
+import numpy.typing as npt
 from numba import njit
 from util import pad
 
 @njit
-def comb(x: np.ndarray[np.float64], b: float = 1.0, M: int = 2000, a: float = 0.9) -> np.ndarray[np.float64]:
+def comb(x: npt.NDArray[np.float64], b: float = 1.0, M: int = 2000, a: float = 0.9) -> np.ndarray[np.float64]:
     """
     Implements a feedback comb filter.
 
@@ -28,7 +28,7 @@ def comb(x: np.ndarray[np.float64], b: float = 1.0, M: int = 2000, a: float = 0.
     return y
 
 @njit
-def lbcf(x: np.ndarray[np.float64], b: float = 1.0, M: int = 2000, a: float = 0.9, d: float = 0.5) -> np.ndarray[np.float64]:
+def lbcf(x: npt.NDArray[np.float64], b: float = 1.0, M: int = 2000, a: float = 0.9, d: float = 0.5) -> np.ndarray[np.float64]:
     """
     Implements Schroeder's Lowpass-Feedback Comb Filter.
 
@@ -53,7 +53,7 @@ def lbcf(x: np.ndarray[np.float64], b: float = 1.0, M: int = 2000, a: float = 0.
     return y
 
 @njit
-def allpass(x: np.ndarray[np.float64], M: int = 2000, a: float = 0.5) -> np.ndarray[np.float64]:
+def allpass(x: npt.NDArray[np.float64], M: int = 2000, a: float = 0.5) -> npt.NDArray[np.float64]:
     """
     Implements an allpass filter.
 
