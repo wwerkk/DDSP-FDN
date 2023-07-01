@@ -3,8 +3,6 @@ import numpy as np
 from numba import njit
 from util import pad
 
-# TODO: Custom pad function compatible with numba
-
 @njit
 def comb(x: np.ndarray[np.float64], b: float = 1.0, M: int = 2000, a: float = 0.9) -> np.ndarray[np.float64]:
     """
@@ -96,12 +94,12 @@ def freeverb(
 
     Args:
         x (np.ndarray): Input signal.
-        cb (List[np.float64], optional): List of input gains for parallel lowpass-feedback comb filters. Defaults to [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0].
-        cM (List[int], optional): List of delay times in samples for parallel lowpass-feedback comb filters. Defaults to [1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116].
-        ca (List[np.float64], optional): List of feedback gains for parallel lowpass-feedback comb filters. Defaults to [0.84, 0.84, 0.84, 0.84, 0.84, 0.84, 0.84, 0.84].
-        cd (List[np.float64], optional): List of damping factors for parallel lowpass-feedback comb filters. Defaults to [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2].
-        aM (List[int], optional): List of delay times in samples for cascading allpass filters. Defaults to [225, 556, 441, 341].
-        aa (List[np.float64], optional): List of feedback gains for cascading allpass filters. Defaults to [0.5, 0.5, 0.5, 0.5].
+        cb (optional): List of input gains for parallel lowpass-feedback comb filters. Defaults to [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0].
+        cM (optional): List of delay times in samples for parallel lowpass-feedback comb filters. Defaults to [1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116].
+        ca (optional): List of feedback gains for parallel lowpass-feedback comb filters. Defaults to [0.84, 0.84, 0.84, 0.84, 0.84, 0.84, 0.84, 0.84].
+        cd (optional): List of damping factors for parallel lowpass-feedback comb filters. Defaults to [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2].
+        aM (optional): List of delay times in samples for cascading allpass filters. Defaults to [225, 556, 441, 341].
+        aa (optional): List of feedback gains for cascading allpass filters. Defaults to [0.5, 0.5, 0.5, 0.5].
 
     Returns:
         np.ndarray: Output signal.
