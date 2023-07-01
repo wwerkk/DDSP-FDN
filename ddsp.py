@@ -7,7 +7,7 @@ def comb(x: torch.Tensor, b: float = 1.0, M: int = 2000, a: float = 0.9) -> torc
     feedback = torch.tensor(0.0, dtype=x.dtype, device=x.device)
     for i in range(y.shape[-1]):
         if i < x.shape[-1]:
-            y[i] += b * x[i]
+            y[i] = b * x[i]
         if i >= M:
             y[i] += feedback
             feedback = -a * y[i - M]
@@ -16,12 +16,10 @@ def comb(x: torch.Tensor, b: float = 1.0, M: int = 2000, a: float = 0.9) -> torc
 @torch.jit.script
 def lbcf(x: torch.Tensor, b: float = 1.0, M: int = 2000, a: float = 0.9, d: float = 0.5) -> torch.Tensor:
     y = torch.zeros(x.shape[-1] + M, dtype=x.dtype, device=x.device)
-    # print(x.shape[-1] + M)
-    # print(y.shape)
     feedback = torch.tensor(0.0, dtype=x.dtype, device=x.device)
     for i in range(y.shape[-1]):
         if i < x.shape[-1]:
-            y[i] += b * x[0][i]
+            y[i] = b * x[0][i]
         if i >= M:
             y[i] += feedback
             feedback += (1 - d) * ((a * y[i - M]) - feedback)
@@ -54,19 +52,27 @@ def freeverb(
 ) -> torch.Tensor:
 
     y = torch.zeros(x.shape[-1], dtype=x.dtype, device=x.device)
+
+    # Comb filters
     for b, M, a, d in zip(cb, cM, ca, cd):
         y_ = lbcf(x=x, b=b, M=M, a=a, d=d)
         shape = y.shape[-1]
         shape_ = y_.shape[-1]
+        pad_length = abs(shape-shape_)
         if shape < shape_:
-            y = F.pad(y, (0, shape_ - shape))
-        elif shape > shape_:
-            y_ = F.pad(y_, (0, shape - shape_))
-        y += y_
+            y = F.pad(y, (0, pad_length))
+        elif shape_ < shape:
+            y_ = F.pad(y_, (0, pad_length))
+        print(y.shape)
+        print(y_.shape)
+        y.add_(y_)
+
+    # Allpass filters
     for M, a in zip(aM, aa):
         y = allpass(y, M, a)
 
     max_abs_value = torch.max(torch.abs(y))
     epsilon = 1e-12
     y = y / (max_abs_value + epsilon)
+
     return y
