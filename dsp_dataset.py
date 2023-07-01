@@ -19,15 +19,15 @@ os.makedirs(y_dir, exist_ok=True)
 # Define the Freeverb peters range
 n_c = 8
 c = (
-    (1250, 500), # delay mean, stdev
-    (0.8, 0.1), # feedback gain mean, stdev
-    (0.5, 0.3) # damping mean, stdev
+    (1000, 500), # delay mean, stdev
+    (0.75, 0.1), # feedback gain mean, stdev
+    (0.2, 0.05) # damping mean, stdev
 )
 
 n_a = 4
 a = (
-    (400, 200), # delay mean, stdev
-    (0.5, 0.1) # feedback gain mean, stdev
+    (500, 200), # delay mean, stdev
+    (0.5, 0.2) # feedback gain mean, stdev
 )
 
 # Set the random seed for reproducibility

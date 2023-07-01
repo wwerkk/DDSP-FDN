@@ -1,7 +1,10 @@
 import numpy as np
 import soundfile as sf
 import os
+from util import pad
+from numba import njit
 
+@njit
 def comb(x, b=1.0, M=2000, a=0.9):
     y = np.zeros(x.shape[-1] + M)
     feedback = 0
@@ -13,6 +16,7 @@ def comb(x, b=1.0, M=2000, a=0.9):
             feedback = -a * y[i - M]
     return y
 
+@njit
 def lbcf(x, b=1.0, M=2000, a=0.9, d=0.5):
     y = np.zeros(x.shape[-1] + M)
     feedback = 0
@@ -24,6 +28,7 @@ def lbcf(x, b=1.0, M=2000, a=0.9, d=0.5):
             feedback += (1 - d) * ((a * y[i - M]) - feedback)
     return y
 
+@njit
 def allpass(x, M=2000, a=0.5):
     feedback = 0
     y = np.zeros(x.shape[-1] + M)
@@ -39,47 +44,30 @@ def allpass(x, M=2000, a=0.5):
             feedback *= a
     return y
 
+@njit
 def freeverb(
         x,
-        cb=[1.0 for i in range(8)],
-        cM=[1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116],
-        ca=[0.84 for i in range(8)],
-        cd=[0.2 for i in range(8)],
-        aM=[225, 556, 441, 341],
-        aa=[0.5 for i in range(4)]
+        cb=np.full(8, 1.0),
+        cM=np.array([1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116], dtype=np.int64),
+        ca=np.full(8, 0.84),
+        cd=np.full(8, 0.2),
+        aM=np.array([225, 556, 441, 341], dtype=np.int64),
+        aa=np.full(4, 0.5)
         ):
-    # Apply comb filters
+    # Apply paralell low-passed feedback comb filters
     y = np.zeros_like(x)
     for b, M, a, d in zip(cb, cM, ca, cd):
-        y_ = lbcf(
-            x=x,
-            b=b,
-            M=M,
-            a=a,
-            d=d
-            )
+        y_ = lbcf(x=x, b=b, M=M, a=a, d=d)
         shape = y.shape[-1]
         shape_ = y_.shape[-1]
         if shape < shape_:
-            # print(shape, shape_, shape_-shape)
-            y = np.pad(
-                y,
-                (0, shape_-shape), 'constant', constant_values=(0))
+            y = pad(y, shape_-shape)
         elif shape > shape_:
-            # print(shape, shape_, shape-shape_)
-            y_ = np.pad(
-                y_,
-                (0, shape-shape_), 'constant', constant_values=(0))
+            y_ = pad(y_, shape-shape_)
         y += y_
-        
-    # Apply allpass filters
+    # Apply cascading allpass filters
     for M, a in zip(aM, aa):
         y = allpass(y, M, a)
-
-    # Normalize output
-    max_abs_value = np.max(np.abs(y))
-    epsilon = 1e-12
-    y = y / (max_abs_value + epsilon)
     return y
 
 # x = np.array([0, 1.0, 1.0, 1.0], dtype=np.float32)
@@ -100,5 +88,5 @@ y = allpass(x, 2000, 0.7)
 file_ = os.path.splitext(file)[0] + f"_allpass.wav"
 sf.write(file_, y, sr)
 y = freeverb(x=x)
-file_ = os.path.splitext(file)[0] + f"_freeverb.wav"
-sf.write(file_, y, sr)
+# file_ = os.path.splitext(file)[0] + f"_freeverb.wav"
+# sf.write(file_, y, sr)
