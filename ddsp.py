@@ -22,7 +22,10 @@ def lbcf(x: torch.Tensor, b: float = 1.0, M: int = 2000, a: float = 0.9, d: floa
             y[i] = b * x[0][i]
         if i >= M:
             y[i] += feedback
-            feedback += (1 - d) * ((a * y[i - M]) - feedback)
+            if i - M >= y.shape[-1]:
+                feedback += (1 - d) * ((a * y[-1]) - feedback)
+            else:
+                feedback += (1 - d) * ((a * y[i - M]) - feedback)
     return y
 
 @torch.jit.script
@@ -63,8 +66,6 @@ def freeverb(
             y = F.pad(y, (0, pad_length))
         elif shape_ < shape:
             y_ = F.pad(y_, (0, pad_length))
-        print(y.shape)
-        print(y_.shape)
         y.add_(y_)
 
     # Allpass filters

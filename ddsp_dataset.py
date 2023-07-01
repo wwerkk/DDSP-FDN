@@ -5,8 +5,6 @@ import numpy as np
 from ddsp import freeverb
 import time
 
-start_time = time.time()
-
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
 elif torch.backends.mps.is_available():
@@ -20,7 +18,7 @@ x_dir = "data/freeverb_dataset/x"
 p_dir = "data/freeverb_dataset/p"
 y_dir = "data/freeverb_dataset/y"
 
-n_samples = 1
+n_samples = 5
 
 # Create the output directory if it doesn't exist
 os.makedirs(p_dir, exist_ok=True)
@@ -49,6 +47,8 @@ file_path = os.path.join(x_dir, x_file)
 x, sr = torchaudio.load(file_path)
 # Normalize the x to the range [-1, 1]
 x /= torch.max(torch.abs(x))
+
+start_time = time.time()
 
 for i in range(n_samples):
     # Apply the Freeverb effect with randomized parameters
