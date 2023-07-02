@@ -70,9 +70,14 @@ def freeverb(
         y = allpass(y, M, a)
     return y
 
+
+# TODO: Jot's reverberator
+# https://ccrma.stanford.edu/~jos/pasp/History_FDNs_Artificial_Reverberation.html
+# https://ccrma.stanford.edu/~jos/pasp/img745_2x.png
+
 # x = np.array([0, 1.0, 1.0, 1.0], dtype=np.float32)
 
-# x = comb(x, 0.5, 2, 1.0)
+# x = fbcf(x, 0.5, 2, 1.0)
 # print(x)
 
 file = 'data/test/noise_burst.wav'
@@ -88,5 +93,5 @@ y = allpass(x, 2000, 0.7)
 file_ = os.path.splitext(file)[0] + f"_allpass.wav"
 sf.write(file_, y, sr)
 y = freeverb(x=x)
-# file_ = os.path.splitext(file)[0] + f"_freeverb.wav"
-# sf.write(file_, y, sr)
+file_ = os.path.splitext(file)[0] + f"_freeverb.wav"
+sf.write(file_, y, sr)
