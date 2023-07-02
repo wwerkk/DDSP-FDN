@@ -1,39 +1,47 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torch.utils.data import Subset
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch import nn
 from torch.optim import Adam
 import torchaudio
 import numpy as np
 import os
-import torchaudio.transforms as T, torch.nn.functional as F
+import torch.nn.functional as F
 
-# Create MFCC transform
-mfcc_transform = T.MFCC(
-    sample_rate=44100,
-    n_mfcc=13,
-    melkwargs={'n_fft': 2048, 'hop_length': 512, 'n_mels': 40, 'center': False}
-)
-
-impulse_file = 'data/freeverb_dataset/dry/balloon_burst_1.wav'
+impulse_file = 'data/freeverb_dataset/x/balloon_burst.wav'
 dataset_dir = 'data/freeverb_dataset'
-wet_audio_dir = os.path.join(dataset_dir, 'wet')
-params_dir = os.path.join(dataset_dir, 'params')
+y_dir = os.path.join(dataset_dir, 'y')
+params_dir = os.path.join(dataset_dir, 'p_n')
+mfcc_dir = os.path.join(dataset_dir, 'mfcc_n')
 
 audio_extension = '.wav'
 param_extension = '.txt'
+mfcc_extension = '.txt'
 
 epochs = 100
-batch_size = 8
+batch_size = 16
+
+trunc_len_s = 2
+sr = 44100
+trunc_len = 2 * sr
+
+if torch.cuda.is_available():
+    device = torch.device("cuda:0")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+print(f'Device: {device}')
 
 class AudioDataset(Dataset):
-    def __init__(self, wet_audio_dir, params_dir, audio_extension='.wav', param_extension='.txt'):
-        self.wet_audio_dir = wet_audio_dir
+    def __init__(self, y_dir, params_dir, mfcc_dir, audio_extension='.wav', param_extension='.txt'):
+        self.y_dir = y_dir
         self.params_dir = params_dir
+        self.mfcc_dir = mfcc_dir
         self.audio_extension = audio_extension
         self.param_extension = param_extension
-        self.file_names = [f.replace(self.audio_extension, '') for f in os.listdir(wet_audio_dir) if f.endswith(self.audio_extension)]
+        self.mfcc_extension = mfcc_extension
+        self.file_names = [f.replace(self.audio_extension, '') for f in os.listdir(y_dir) if f.endswith(self.audio_extension)]
         print(f"Loaded files: {len(self.file_names)}")
 
     def __len__(self):
@@ -41,18 +49,24 @@ class AudioDataset(Dataset):
 
     def __getitem__(self, idx):
         file_name = self.file_names[idx]
-        wet_audio_path = os.path.join(self.wet_audio_dir, file_name + self.audio_extension)
+        # y_path = os.path.join(self.y_dir, file_name + self.audio_extension)
         params_path = os.path.join(self.params_dir, file_name + self.param_extension)
+        mfcc_path = os.path.join(self.mfcc_dir, file_name + self.mfcc_extension)
 
         # Load the wet audio file
-        waveform, sample_rate = torchaudio.load(wet_audio_path)
-        waveform = waveform.squeeze(0)
+        # waveform, sample_rate = torchaudio.load(y_path)
+        # waveform = waveform.squeeze(0)
+        # waveform = waveform[:trunc_len]
 
-        # Compute MFCCs from the wet audio
-        mfccs = mfcc_transform(waveform)
+        # Load MFCCs
+        mfccs = np.loadtxt(mfcc_path)
 
-         # Normalize the MFCCs
-        mfccs = F.normalize(mfccs)
+        new_dimension = mfccs.shape[-1] // 16
+        mfccs = mfccs.reshape(mfccs.shape[:-1] + (new_dimension, 16))
+        # print("MFCC SHAPE")
+        # print(mfccs.shape)
+        mfccs = np.transpose(mfccs, axes=(1, 0))
+        # print(mfccs.shape)
 
         # Load the parameters
         params = np.loadtxt(params_path)
@@ -80,8 +94,6 @@ class AudioDataset(Dataset):
         # Return the denormalized params
         return denormalized_params
 
-import torch.nn.functional as F
-
 class AudioModel(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(AudioModel, self).__init__()
@@ -100,7 +112,8 @@ class AudioModel(nn.Module):
         return out
 
 # Load the dataset
-dataset = AudioDataset(wet_audio_dir, params_dir, audio_extension, param_extension)
+dataset = AudioDataset(y_dir, params_dir, mfcc_dir, audio_extension, param_extension)
+
 # Specify the validation split ratio (e.g., 0.2 for 20% validation data)
 validation_split = 0.2
 
@@ -119,13 +132,24 @@ val_sampler = SubsetRandomSampler(val_indices)
 train_dataloader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
 val_dataloader = DataLoader(dataset, batch_size=batch_size, sampler=val_sampler)
 
-impulse, sr = torchaudio.load(impulse_file)
+# impulse, sr = torchaudio.load(impulse_file)
 # resampler = T.Resample(sr, 16000, dtype=impulse.dtype)
 # waveform = resampler(impulse)
 # sr = 16000
 
+# Get a sample input from the dataset
+sample_data = next(iter(train_dataloader))
+sample_input = sample_data[0]  # Assuming the input is the first element in the sample data
+
+# Calculate the input size
+input_size = tuple(sample_input.shape[1:])
+input_size = input_size[0] * input_size[1]
+input_size = 345
+
+print("Input size:", input_size)
+
 # Define the model
-model = AudioModel(1079, 64, 28)  # Assuming audio files are 1 second at 44100Hz and parameters are 24-dimensional
+model = AudioModel(input_size, 16, 32)  # Assuming parameters are 32-dimensional
 optimizer = Adam(model.parameters(), lr=0.0001)
 criterion = torch.nn.MSELoss()
 
@@ -139,13 +163,11 @@ for epoch in range(epochs):
     # Training
     model.train()
     for batch in train_dataloader:
-        wet_audio, params = batch
-        wet_audio = wet_audio.view(wet_audio.size(0), -1).float()  # Convert to Float
+        mfccs, params = batch
+        mfccs = mfccs.float()
         params = params.float()  # Convert to Float
-
         # Forward pass
-        outputs = model(wet_audio)
-
+        outputs = model(mfccs)
         # Compute the loss between the model's output and the parameters
         train_loss = criterion(outputs, params)
 
@@ -162,14 +184,17 @@ for epoch in range(epochs):
         val_loss = 0.0
         with torch.no_grad():
             for batch in val_dataloader:
-                wet_audio, params = batch
-                wet_audio = wet_audio.view(wet_audio.size(0), -1).float()  # Convert to Float
+                mfccs, params = batch
+                mfccs = mfccs.float()
                 params = params.float()  # Convert to Float
-
                 # Forward pass
-                outputs = model(wet_audio)
-
+                outputs = model(mfccs)
+                # TODO fix the shape difference issues between outputs and targets
                 # Compute the loss between the model's output and the parameters
+                print(outputs.shape)
+                print(outputs)
+                print(params.shape)
+                print(params)
                 loss = criterion(outputs, params)
 
                 val_loss += loss.item()
@@ -185,37 +210,3 @@ for epoch in range(epochs):
         print(f'Epoch {epoch+1}, Train Loss: {train_loss}   Val Loss: {val_loss}')
     else:
         print(f'Epoch {epoch+1}, Train Loss: {train_loss}')
-
-
-
-
-# for epoch in range(epochs):  # 100 epochs
-#     for batch in dataloader:
-#         wet_audio, params = batch
-#         wet_audio = wet_audio.view(wet_audio.size(0), -1)  # Flatten the audio data
-
-#         # Forward pass
-#         outputs = model(wet_audio)
-
-#         # Use the model's output to generate parameters for the freeverb function
-#         processed_waveforms = torch.empty(32, sr)
-#         for i, sample in enumerate(outputs):
-#             params = sample.detach()
-#             # print(params.shape)
-#             # Process the impulse audio file with the Freeverb effect
-#             impulse_waveform = impulse.squeeze(0)
-#             print(f"Applying reverb to sample {i} in batch")
-#             processed_waveform = freeverb(impulse_waveform, params)
-#             processed_waveforms[i] = processed_waveform
-
-#         print(f"Reverb applied to entire batch, calculating loss...")
-#         # Compute the loss between the processed waveform and the target waveform
-#         loss = criterion(processed_waveforms, wet_audio)
-
-#         # Backward pass and optimization
-#         print(f"Backward pass...")
-#         optimizer.zero_grad()
-#         loss.backward()
-#         optimizer.step()
-
-    # print(f'Epoch {epoch+1}, Loss: {loss.item()}')

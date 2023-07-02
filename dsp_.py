@@ -5,7 +5,7 @@ from util import pad
 from numba import njit
 
 @njit
-def comb(x, b=1.0, M=2000, a=0.9):
+def fbcf(x, b=1.0, M=2000, a=0.9):
     y = np.zeros(x.shape[-1] + M)
     feedback = 0
     for i in range(len(y)):
@@ -78,8 +78,8 @@ def freeverb(
 file = 'data/test/noise_burst.wav'
 x, sr = sf.read(file)
 
-y = comb(x, 0.5, 8000, 0.7)
-file_ = os.path.splitext(file)[0] + f"_comb.wav"
+y = fbcf(x, 0.5, 8000, 0.7)
+file_ = os.path.splitext(file)[0] + f"_fbcf.wav"
 sf.write(file_, y, sr)
 y = lbcf(x, 0.5, 8000, 0.7, 0.7)
 file_ = os.path.splitext(file)[0] + f"_lbcf.wav"

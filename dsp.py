@@ -4,7 +4,7 @@ from numba import njit
 from util import pad
 
 @njit
-def comb(x: npt.NDArray[np.float64], b: float = 1.0, M: int = 2000, a: float = 0.9) -> np.ndarray[np.float64]:
+def fbcf(x: npt.NDArray[np.float64], b: float = 1.0, M: int = 2000, a: float = 0.9) -> np.ndarray[np.float64]:
     """
     Implements a feedback comb filter.
 
@@ -90,7 +90,8 @@ def freeverb(
         aa=np.full(4, 0.5)
         ):
     """
-    Applies Freeverb algorithm to the input signal.
+    Applies Schroeder reverberator algorithm (aka Freeverb) to the input signal.
+    https://ccrma.stanford.edu/~jos/pasp/Freeverb.html
 
     Args:
         x (np.ndarray): Input signal.
@@ -104,6 +105,7 @@ def freeverb(
     Returns:
         np.ndarray: Output signal.
     """
+    ca = np.clip(ca, 1.0714, 0.98) # clip range to stable values
     y = np.zeros(x.shape[-1])
     # Apply paralell low-passed feedback comb filters
     for b, M, a, d in zip(cb, cM, ca, cd):
@@ -123,3 +125,7 @@ def freeverb(
     epsilon = 1e-12
     y = y / (max_abs_value + epsilon)
     return y
+
+# TODO: Jot's reverberator
+# https://ccrma.stanford.edu/~jos/pasp/History_FDNs_Artificial_Reverberation.html
+# https://ccrma.stanford.edu/~jos/pasp/img745_2x.png
