@@ -38,7 +38,7 @@ def allpass(x, M=2000, a=0.5):
             y[i] = x[i] - feedback
             feedback *= a
             if i >= M:
-                feedback += x[i]
+                feedback += x[i - M]
         else:
             y[i] -= feedback
             feedback *= a

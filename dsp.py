@@ -73,7 +73,7 @@ def allpass(x: npt.NDArray[np.float64], M: int = 2000, a: float = 0.5) -> npt.ND
             y[i] = x[i] - feedback
             feedback *= a
             if i >= M:
-                feedback += x[i]
+                feedback += x[i - M]
         else:
             y[i] -= feedback
             feedback *= a
