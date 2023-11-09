@@ -11,11 +11,17 @@ from dsp_ import prime
 import time
 from librosa.feature import mfcc
 from dsp_ import simple_fdn
+import os
 
 # Set the paths
 mfcc_dir = "data/fdn_dataset/mfcc"
 mfcc_n_dir = "data/fdn_dataset/mfcc_n"
 y_dir = "data/fdn_dataset/y"
+
+# Create the output directory if it doesn't exist
+os.makedirs(mfcc_dir, exist_ok=True)
+os.makedirs(mfcc_n_dir, exist_ok=True)
+os.makedirs(y_dir, exist_ok=True)
 
 # FDN size and samplerate
 FDN_SIZE = 16
@@ -75,7 +81,7 @@ for i in range(IMPULSE_NUM):
                    max_freq=max_freq[i],
                    frequency_curve=frequency_curve[i],
                    H=H,
-                   prime_list=PRIME_LIST,
+                   prime_list=PRIME_LIST.astype(np.int32),
                    sr=SAMPLE_RATE)
     impulse_responses[i, :] = y
 
