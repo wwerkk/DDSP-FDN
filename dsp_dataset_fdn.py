@@ -1,5 +1,8 @@
-## TODO: maybe compile a binary (under 10 minutes)
+## TODO: compile with cython
 
+import warnings
+from numba.core.errors import NumbaPerformanceWarning
+warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 import numpy as np
 import scipy
 import pandas as pd
@@ -25,7 +28,7 @@ os.makedirs(plot_dir, exist_ok=True)
 # FDN size and samplerate
 FDN_SIZE = 16
 SAMPLE_RATE = 16000
-IMPULSE_NUM = 1
+IMPULSE_NUM = 20
 MAX_LENGTH = 2000
 PLOT = True
 
@@ -91,7 +94,7 @@ for i in range(IMPULSE_NUM):
     write(y_path, y, SAMPLE_RATE)
     # Save FDN params
     p_path = p_dir + '/' + "impulse" + f"_{i}"
-    print(parameters.values[i])
+    # print(parameters.values[i])
     # np.savetxt(p_path, parameters.values[i], fmt='%.10f')
     np.savetxt(p_path, parameters.values[i])
     # Generate and save the spectrogram
