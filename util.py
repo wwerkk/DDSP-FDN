@@ -1,5 +1,8 @@
 import numba
 import numpy as np
+from librosa import stft, power_to_db, display
+from matplotlib import pyplot as plt
+import os
 
 @numba.jit(nopython=True)
 def pad(a, pad_width, constant_values=0):
@@ -44,3 +47,47 @@ def padadd(a, b):
     if len_b < max_len:
         b = pad(b, max_len - len_b)
     return a + b
+
+###
+# Util functions from NeuralReverberator repo by C. Steinmetz
+###
+def generate_specgram(x, sr=16000, n_fft=1024, n_hop=256):
+    """
+    Generate a spectrogram (via stft) on input audio data.
+
+    Args:
+        x (ndarray): Input audio data.
+        sr (int, optional): Sample rate out input audio data.
+        n_fft (int, optional): Size of the FFT to generate spectrograms.
+        n_hop (int, optional): Hop size for FFT.
+    """
+    S = stft(x, n_fft=n_fft, hop_length=n_hop, center=True)
+    power_spectra = np.abs(S)**2
+    log_power_spectra = power_to_db(power_spectra)
+    _min = np.amin(log_power_spectra)
+    _max = np.amax(log_power_spectra)
+    if _min == _max:
+        print(f"divide by zero in audio array")
+    else:
+        normalized_log_power_spectra = (log_power_spectra - _min) / (_max - _min)
+    return normalized_log_power_spectra
+    
+
+def plot_specgram(log_power_spectra, rate, filename, output_dir):
+    """ 
+    Save log-power and normalized log-power specotrgram to file.
+
+    Args:
+        log_power_spectra (ndarray): Comptued Log-Power spectra.
+        rate (int): Sample rate of input audio data.
+        filename (str): Output filename for generated plot.
+        output_dir (str): Directory to save generated plot.
+    """
+
+    plt.figure()
+    display.specshow(log_power_spectra, sr=rate*2, y_axis='log', x_axis='time')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Log-Power spectrogram')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, filename))
+    plt.close('all')

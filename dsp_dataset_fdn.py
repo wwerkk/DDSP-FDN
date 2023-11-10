@@ -1,32 +1,34 @@
-# Latest 09/11/2023 19:07
+## TODO: maybe compile a binary (under 10 minutes)
 
-# import os
-# from tarfile import NUL
 import numpy as np
 import scipy
 import pandas as pd
-import soundfile as sf
-from soundfile import read, write
+from soundfile import  write
 from dsp_ import prime
 import time
 from librosa.feature import mfcc
 from dsp_ import simple_fdn
 import os
+from util import generate_specgram, plot_specgram
 
 # Set the paths
-mfcc_dir = "data/fdn_dataset/mfcc"
-mfcc_n_dir = "data/fdn_dataset/mfcc_n"
-y_dir = "data/fdn_dataset/y"
+p_dir = "data/params"
+y_dir = "data/audio"
+spect_dir = "data/spectrograms"
+plot_dir = "data/spect_plots"
 
 # Create the output directory if it doesn't exist
-os.makedirs(mfcc_dir, exist_ok=True)
-os.makedirs(mfcc_n_dir, exist_ok=True)
+os.makedirs(p_dir, exist_ok=True)
 os.makedirs(y_dir, exist_ok=True)
+os.makedirs(spect_dir, exist_ok=True)
+os.makedirs(plot_dir, exist_ok=True)
 
 # FDN size and samplerate
 FDN_SIZE = 16
-SAMPLE_RATE = 44100
-IMPULSE_NUM = 3
+SAMPLE_RATE = 16000
+IMPULSE_NUM = 1
+MAX_LENGTH = 2000
+PLOT = True
 
 # Set the random seed for reproducibility
 np.random.seed(42)
@@ -68,8 +70,8 @@ PRIME_LIST = prime(0, 30000)
 # 2 second impulse responses
 IMPULSE_LENGTH = (SAMPLE_RATE * 2) + x.shape[-1]
 
-# store impulse responses in a 2d array.
-impulse_responses = np.ndarray((IMPULSE_NUM, IMPULSE_LENGTH))
+## store impulse responses in a 2d array.
+# impulse_responses = np.ndarray((IMPULSE_NUM, IMPULSE_LENGTH))
 
 for i in range(IMPULSE_NUM):
     y = simple_fdn(x,
@@ -82,48 +84,30 @@ for i in range(IMPULSE_NUM):
                    frequency_curve=frequency_curve[i],
                    H=H,
                    prime_list=PRIME_LIST.astype(np.int32),
-                   sr=SAMPLE_RATE)
-    impulse_responses[i, :] = y
+                   sr=SAMPLE_RATE,
+                   max_length=MAX_LENGTH)
+    # impulse_responses[i, :] = y
 
-    # Calculate the MFCCs of the processed audio
-    mfccs = mfcc(y=y, sr=SAMPLE_RATE, n_mfcc=16, n_fft = 1024, hop_length=256)
-    # print('before reshape', mfccs.shape)
-    
-    # reshaped mfcc.
-    mfccs = mfccs.reshape(mfccs.shape[:-2] + (-1,))
-    # print('after reshape', mfccs.shape)
-
-    MFCCS.append(mfccs)
-
-    # # Save MFCCs to a .txt file
-    mfcc_path = mfcc_dir + '/' + "mfcc" + f"_{i}.txt"
-    np.savetxt(mfcc_path, mfccs, fmt='%.10f')
-
-    # Write impulse responses to y folder
+    # Save impulse response audio
     y_path = y_dir + '/' + "impulse" + f"_{i}.wav"
     write(y_path, y, SAMPLE_RATE)
+    # Save FDN params
+    p_path = p_dir + '/' + "impulse" + f"_{i}"
+    print(parameters.values[i])
+    # np.savetxt(p_path, parameters.values[i], fmt='%.10f')
+    np.savetxt(p_path, parameters.values[i])
+    # Generate and save the spectrogram
+    Sn = np.array(generate_specgram(y, SAMPLE_RATE))
+    spect_path = spect_dir + '/' + "impulse" + f"_{i}"
+    np.savetxt(spect_path, Sn)
+    # Optional: Generate and save spectrogram plot
+    if PLOT:
+        plot_specgram(Sn, SAMPLE_RATE, "impulse" + f"_{i}", plot_dir)
     
-    # print(f"Generated: {i+1}/{IMPULSE_NUM}")
-
-# convert MFCCS to numpy array
-MFCCS = np.array(MFCCS)
-print(f"{IMPULSE_NUM} samples generated.")
-# print(f"{P.shape} parameters calculated.")
-print(f"{MFCCS.shape} MFCCS calculated.")
-
-print("shape checking MFCCS: ", MFCCS.shape)
-
-# Normalise each array of MFCCs
-for i in range(MFCCS.shape[0]):
-    MFCCS[i] = (MFCCS[i] - MFCCS[i].min()) / (MFCCS[i].max() - MFCCS[i].min())
-
-# Store the normalised MFCCs in a .txt file
-for i in range(IMPULSE_NUM):
-    mfcc_n_path = mfcc_n_dir + '/' + "mfcc" + f"_{i}.txt" 
-    np.savetxt(mfcc_n_path, MFCCS[i], fmt='%.10f')
+    print(f"{i+1}/{IMPULSE_NUM}")
 
 # Save parameters.
-np.savetxt(r'data\fdn_dataset\p\p.txt', parameters.values, fmt='%10.4f')
+# parameters.values
 
 end_time = time.time()
 runtime = end_time - start_time
