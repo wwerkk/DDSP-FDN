@@ -193,7 +193,7 @@ def t60(duration_in_samples):
 def t60_time(multiplier):
     return np.log(0.001) / np.log(multiplier)
 
-@jit("float64[:](float64[:], float64, float64, float64, float64, float64, float64, float64, float64[:, :], int32[:], int64)", nopython=True, fastmath=True, parallel=False)
+@jit("float64[:](float64[:], float64, float64, float64, float64, float64, float64, float64, float64[:, :], int32[:], int64, int64)", nopython=True, fastmath=True, parallel=False)
 def simple_fdn(input,
                decay=None,
                min_dist=1.,
@@ -204,11 +204,12 @@ def simple_fdn(input,
                frequency_curve=1.809,
                H=np.array(0),
                prime_list=np.array(0),
-               sr=44100):
+               sr=44100,
+               max_length=2000):
 
     # assert all values have been entered.
-    assert decay != None, f"decay between 0 and 1 expected, got: {decay}"
-    assert np.abs(decay) <= 1.0, f"decay between 0 and 1 expected, got: {decay}"
+    # assert decay != None, f"decay between 0 and 1 expected, got: {decay}"
+    # assert np.abs(decay) <= 1.0, f"decay between 0 and 1 expected, got: {decay}"
 
     # scale delay time parameter values if they are within range.
     min_dist = min_dist * 100. if (min_dist > 0) else 1.
@@ -233,9 +234,6 @@ def simple_fdn(input,
     N = l.shape[0]
     
     freqs = filter_list(n=N, min_freq=min_freq, max_freq=max_freq, frequency_curve=frequency_curve)
-    
-    # make this a parameter.
-    max_length = 2000
 
     # default smallest decay time equivalent to largest delay length in milliseconds
     decay = decay * max_length if (decay > 0.) else max_dist
