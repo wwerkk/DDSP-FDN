@@ -6,7 +6,6 @@ import pandas as pd
 from soundfile import  write
 from dsp_ import prime
 import time
-from librosa.feature import mfcc
 from dsp_ import simple_fdn
 import os
 from util import generate_specgram, plot_specgram
@@ -41,7 +40,6 @@ x[1] = 1
 # Hadamard matrix
 H = scipy.linalg.hadamard(FDN_SIZE) * 0.25
 start_time = time.time()
-MFCCS = []
 
 # Random parameter arrays
 decay           = np.random.random((IMPULSE_NUM))
