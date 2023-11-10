@@ -1,5 +1,4 @@
 # Latest 09/11/2023 19:08
-
 import numpy as np
 import soundfile as sf
 import os
@@ -276,31 +275,3 @@ def simple_fdn(input,
     y = np.sum(output, axis=0)
     
     return y * (1 / np.max(np.abs(y)))
-
-# TODO:
-# Jot's reverberator
-# Single modulo in feedforward delay
-# Comments in all definitions
-# Max length parameter in fdn_simple
-# https://ccrma.stanford.edu/~jos/pasp/History_FDNs_Artificial_Reverberation.html
-# https://ccrma.stanford.edu/~jos/pasp/img745_2x.png
-
-# x = np.array([0, 1.0, 1.0, 1.0], dtype=np.float32)
-# x = fbcf(x, 0.5, 2, 1.0)
-# print(x)
-
-# file = 'data/test/noise_burst.wav'
-# x, sr = sf.read(file)
-
-# y = fbcf(x, 0.5, 8000, 0.7)
-# file_ = os.path.splitext(file)[0] + f"_fbcf.wav"
-# sf.write(file_, y, sr)
-# y = lbcf(x, 0.5, 8000, 0.7, 0.7)
-# file_ = os.path.splitext(file)[0] + f"_lbcf.wav"
-# sf.write(file_, y, sr)
-# y = allpass(x, 2000, 0.7)
-# file_ = os.path.splitext(file)[0] + f"_allpass.wav"
-# sf.write(file_, y, sr)
-# y = freeverb(x=x)
-# file_ = os.path.splitext(file)[0] + f"_freeverb.wav"
-# sf.write(file_, y, sr)
