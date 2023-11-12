@@ -1,4 +1,4 @@
 *.wav
 data/*
 *.pyc
-data/
+data_/*
