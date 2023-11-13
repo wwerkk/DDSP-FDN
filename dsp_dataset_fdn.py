@@ -93,13 +93,13 @@ for i in range(IMPULSE_NUM):
     y_path = y_dir + '/' + "impulse" + f"_{i}.wav"
     write(y_path, y, SAMPLE_RATE)
     # Save FDN params
-    p_path = p_dir + '/' + "impulse" + f"_{i}"
+    p_path = p_dir + '/' + "impulse" + f"_{i}.txt"
     # print(parameters.values[i])
     # np.savetxt(p_path, parameters.values[i], fmt='%.10f')
     np.savetxt(p_path, parameters.values[i])
     # Generate and save the spectrogram
     Sn = np.array(generate_specgram(y, SAMPLE_RATE))
-    spect_path = spect_dir + '/' + "impulse" + f"_{i}"
+    spect_path = spect_dir + '/' + "impulse" + f"_{i}.txt"
     np.savetxt(spect_path, Sn)
     # Optional: Generate and save spectrogram plot
     if PLOT:

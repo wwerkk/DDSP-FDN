@@ -3,7 +3,7 @@
 import warnings
 from numba.core.errors import NumbaPerformanceWarning
 warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
-import numpy as np
+import numpy as np                          
 import scipy
 import pandas as pd
 from soundfile import  write
@@ -23,8 +23,8 @@ plot_dir = "data/spect_plots"
 # FDN size and samplerate
 FDN_SIZE = 16
 SAMPLE_RATE = 16000
-IMPULSE_NUM = 20
-MAX_LENGTH = 2000
+IMPULSE_NUM = 100
+MAX_LENGTH = 1000
 PLOT = True
 NUM_WORKERS = os.cpu_count() # default to number of cores, can be set manually
 
@@ -100,11 +100,11 @@ def main():
         y_path = y_dir + '/' + "impulse" + f"_{i}.wav"
         write(y_path, y, SAMPLE_RATE)
         # Save FDN params
-        p_path = p_dir + '/' + "impulse" + f"_{i}"
+        p_path = p_dir + '/' + "impulse" + f"_{i}.txt"
         # print(parameters.values[i])
         np.savetxt(p_path, parameters.values[i])
         # Generate and save the spectrogram
-        spect_path = spect_dir + '/' + "impulse" + f"_{i}"
+        spect_path = spect_dir + '/' + "impulse" + f"_{i}.txt"
         np.savetxt(spect_path, Sn)
         # Optional: Generate and save spectrogram plot
         if PLOT:
